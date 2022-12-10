@@ -11,7 +11,7 @@ public protocol HTTPRequestProtocol {
     var url: String { get }
     var method: HTTPMethod { get }
     var headers: [String: String]? { get }
-    var parameters: HTTPRequestParameters? { get }
+    var parameters: HTTPRequestParameters { get }
 }
 
 public enum HTTPMethod: String {

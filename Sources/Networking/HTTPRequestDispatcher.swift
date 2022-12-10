@@ -60,13 +60,14 @@ public class HTTPRequestDispatcher: HTTPRequestDispatcherProtocol {
                     let decoder = JSONDecoder()
                     let responseType = try decoder.decode(type.self, from: data)
                     completion(.success(responseType))
+                    return
                 } catch let error as DecodingError {
                     completion(.failure(.jsonParse(error)))
+                    return
                 } catch {
                     completion(.failure(.unknown))
+                    return
                 }
-                
-                completion(.failure(.unknown))
             }
         } catch {
             completion(.failure(.request(error)))
