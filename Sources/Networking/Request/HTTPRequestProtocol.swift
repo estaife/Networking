@@ -1,5 +1,5 @@
 //
-//  HTTPRequest.swift
+//  HTTPRequestProtocol.swift
 //  
 //
 //  Created by estaife on 09/12/22.
@@ -22,13 +22,16 @@ public enum HTTPMethod: String {
 public enum HTTPRequestParameters {
     case queryItems([String: String])
     case json(model: Encodable)
-    case body([String: Any]?)
+    case body([String: Any])
     case plain
 }
-
 
 public extension Encodable {
     func convertToData() throws -> Data {
         return try JSONEncoder().encode(self)
     }
+}
+
+extension HTTPRequestProtocol {
+    var parameters: HTTPRequestParameters { .plain }
 }

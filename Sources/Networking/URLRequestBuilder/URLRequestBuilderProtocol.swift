@@ -8,5 +8,5 @@
 import Foundation
 
 public protocol URLRequestBuilderProtocol {
-    func builder(with request: HTTPRequestProtocol) throws -> URLRequest
+    func build(with request: HTTPRequestProtocol) throws -> URLRequest
 }

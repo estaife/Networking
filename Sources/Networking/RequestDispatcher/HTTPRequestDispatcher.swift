@@ -23,7 +23,7 @@ public class HTTPRequestDispatcher: HTTPRequestDispatcherProtocol {
     public func execute<ResponseType: Codable>(_ request: HTTPRequestProtocol, type: ResponseType.Type, completion: @escaping (Result<ResponseType, HTTPRequestError>) -> Void) {
         
         do {
-            let urlRequest = try builder.builder(with: request)
+            let urlRequest = try builder.build(with: request)
             session.dataTask(with: urlRequest) { (data, response, error) in
                 if let error {
                     switch error {
