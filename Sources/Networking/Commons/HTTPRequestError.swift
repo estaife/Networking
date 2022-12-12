@@ -11,11 +11,32 @@ public enum HTTPRequestError: Error {
     case unknown
     case networkUnavailable
     case invalidHTTPResponse
-    case requestSerialization(Error)
     case serializedError(data: Data, statusCode: Int)
     case request(Error)
-    case jsonParse(Error)
-    case urlError(URLError)
+    case parameterEncodingFailed(reason: ParameterEncodingFailure)
+    case responseSerializationFailed(Error)
+    
+    public enum ParameterEncodingFailure: Error, Equatable {
+        case missingURL
+        case invalidJSONObject
+        case jsonEncodingFailed(error: Error)
+        case customEncodingFailed(error: Error)
+        
+        public static func == (lhs: HTTPRequestError.ParameterEncodingFailure, rhs: HTTPRequestError.ParameterEncodingFailure) -> Bool {
+            switch (lhs, rhs) {
+            case (.missingURL, .missingURL):
+                return true
+            case (.invalidJSONObject, .invalidJSONObject):
+                return true
+            case let (.jsonEncodingFailed(lhsError), .jsonEncodingFailed(rhsError)):
+                return (lhsError as NSError) == (rhsError as NSError)
+            case let (.customEncodingFailed(lhsError), .customEncodingFailed(rhsError)):
+                return (lhsError as NSError) == (rhsError as NSError)
+            default:
+                return false
+            }
+        }
+    }
 }
 
 extension HTTPRequestError: Equatable {
@@ -27,16 +48,14 @@ extension HTTPRequestError: Equatable {
             return true
         case (.invalidHTTPResponse, .invalidHTTPResponse):
             return true
-        case let (.requestSerialization(lhsError), .requestSerialization(rhsError)):
-            return (lhsError as NSError) == (rhsError as NSError)
         case let (.serializedError(lhsData, lhsCode), .serializedError(rhsData, rhsCode)):
             return lhsData == rhsData && lhsCode == rhsCode
         case let (.request(lhsError), .request(rhsError)):
             return (lhsError as NSError) == (rhsError as NSError)
-        case let (.jsonParse(lhsError), .jsonParse(rhsError)):
+        case let (.parameterEncodingFailed(lhsReason), .parameterEncodingFailed(rhsReason)):
+            return lhsReason == rhsReason
+        case let (.responseSerializationFailed(lhsError), .responseSerializationFailed(rhsError)):
             return (lhsError as NSError) == (rhsError as NSError)
-        case let (.urlError(e1), .urlError(e2)):
-            return e1 == e2
         default:
             return false
         }
