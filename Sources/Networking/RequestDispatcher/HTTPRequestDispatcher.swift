@@ -7,70 +7,74 @@
 
 import Foundation
 
-public class HTTPRequestDispatcher: HTTPRequestDispatcherProtocol {
-    public let session: URLSessionProtocol
-    public let builder: URLRequestBuilderProtocol
+public class HTTPRequestDispatcher {
+    private let session: URLSessionProtocol
+    private let builder: URLRequestBuilderProtocol
+    private let decoder: JSONDecoder
     
-    public required init(session: URLSessionProtocol, builder: URLRequestBuilderProtocol) {
+    public required init(session: URLSessionProtocol, builder: URLRequestBuilderProtocol, decoder: JSONDecoder) {
         self.session = session
         self.builder = builder
+        self.decoder = decoder
     }
     
     public convenience init() {
-        self.init(session: URLSession.shared, builder: URLRequestBuilder())
+        self.init(session: URLSession.shared, builder: URLRequestBuilder(), decoder: JSONDecoder())
     }
+    
+    private func handle(error: Error) -> HTTPRequestError {
+        if error._code == -1009 {
+            return .networkUnavailable
+        }
+        return .request(error)
+    }
+    
+    private func handle<ResponseType: Codable>(type: ResponseType.Type, response: URLResponse?, data: Data?) -> Result<ResponseType, HTTPRequestError> {
+        guard let httpResponse = response as? HTTPURLResponse else {
+            return .failure(.invalidHTTPResponse)
+        }
+        
+        guard let data, !data.isEmpty else {
+            return .failure(.unknown)
+        }
+        
+        if 400...499 ~= httpResponse.statusCode {
+            return .failure(.serializedError(data: data, statusCode: httpResponse.statusCode))
+        }
+        
+        if 200...299 ~= httpResponse.statusCode {
+            do {
+                let responseType = try decoder.decode(type.self, from: data)
+                return .success(responseType)
+            } catch let error as DecodingError {
+                return .failure(.responseSerializationFailed(error))
+            } catch {
+                return .failure(.unknown)
+            }
+        }
+        
+        return .failure(.unknown)
+    }
+}
+
+extension HTTPRequestDispatcher: HTTPRequestDispatcherProtocol {
    
     public func execute<ResponseType: Codable>(_ request: HTTPRequestProtocol, type: ResponseType.Type, completion: @escaping (Result<ResponseType, HTTPRequestError>) -> Void) {
-        
         do {
             let urlRequest = try builder.build(with: request)
-            session.dataTask(with: urlRequest) { (data, response, error) in
-                if let error {
-                    switch error {
-                    case let urlError as URLError:
-                        if urlError.networkUnavailableReason != nil {
-                            completion(.failure(.networkUnavailable))
-                        }
-                        completion(.failure(.urlError(urlError)))
-                        
-                    case let requestError as HTTPRequestError:
-                        completion(.failure(requestError))
-                        
-                    default:
-                        completion(.failure(.request(error)))
+            session.dataTask(with: urlRequest) { [weak self] (data, response, error) in
+                if let self {
+                    if let error {
+                        completion(.failure(self.handle(error: error)))
+                        return
                     }
-                }
-                
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    completion(.failure(.invalidHTTPResponse))
-                    return
-                }
-                
-                guard let data else {
-                    completion(.failure(.unknown))
-                    return
-                }
-                
-                guard 200...299 ~= httpResponse.statusCode else {
-                    completion(.failure(.serializedError(data: data, statusCode: httpResponse.statusCode)))
-                    return
-                }
-        
-                do {
-                    let decoder = JSONDecoder()
-                    let responseType = try decoder.decode(type.self, from: data)
-                    completion(.success(responseType))
-                    return
-                } catch let error as DecodingError {
-                    completion(.failure(.jsonParse(error)))
-                    return
-                } catch {
-                    completion(.failure(.unknown))
+                    completion(self.handle(type: type, response: response, data: data))
                     return
                 }
             }
         } catch {
             completion(.failure(.request(error)))
+            return
         }
     }
     
