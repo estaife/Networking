@@ -10,7 +10,7 @@ import Foundation
 public protocol HTTPRequestProtocol {
     var url: String { get }
     var method: HTTPMethod { get }
-    var headers: [String: String]? { get }
+    var headers: [String: String] { get }
     var parameters: HTTPRequestParameters { get }
 }
 
@@ -30,8 +30,4 @@ public extension Encodable {
     func convertToData() throws -> Data {
         return try JSONEncoder().encode(self)
     }
-}
-
-extension HTTPRequestProtocol {
-    var parameters: HTTPRequestParameters { .plain }
 }
