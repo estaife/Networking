@@ -7,6 +7,6 @@
 
 import Foundation
 
-struct TestModel: Encodable {
+struct TestModel: Codable {
     let test: String
 }
