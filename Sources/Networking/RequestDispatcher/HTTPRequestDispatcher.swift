@@ -12,7 +12,7 @@ public class HTTPRequestDispatcher {
     private let builder: URLRequestBuilderProtocol
     private let decoder: JSONDecoder
     
-    public required init(session: URLSessionProtocol, builder: URLRequestBuilderProtocol, decoder: JSONDecoder) {
+    public init(session: URLSessionProtocol, builder: URLRequestBuilderProtocol, decoder: JSONDecoder) {
         self.session = session
         self.builder = builder
         self.decoder = decoder
