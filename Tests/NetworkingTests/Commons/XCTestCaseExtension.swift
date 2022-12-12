@@ -8,6 +8,9 @@
 import XCTest
 
 extension XCTestCase {
-    var validURLString: String { "http://example.com" }
-    var invalidURLString: String { #"http://example.com/file\/.html"# }
+    func memoryLeakCheckWith(instance: AnyObject, file: StaticString = #file, line: UInt = #line) {
+        addTeardownBlock { [weak instance] in
+            XCTAssertNil(instance, file: file, line: line)
+        }
+    }
 }
