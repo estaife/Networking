@@ -10,16 +10,14 @@ import Foundation
 public class HTTPRequestDispatcher {
     private let session: URLSessionProtocol
     private let builder: URLRequestBuilderProtocol
-    private let decoder: JSONDecoder
     
-    public init(session: URLSessionProtocol, builder: URLRequestBuilderProtocol, decoder: JSONDecoder) {
+    public init(session: URLSessionProtocol, builder: URLRequestBuilderProtocol) {
         self.session = session
         self.builder = builder
-        self.decoder = decoder
     }
     
     public convenience init() {
-        self.init(session: URLSession.shared, builder: URLRequestBuilder(), decoder: JSONDecoder())
+        self.init(session: URLSession.shared, builder: URLRequestBuilder())
     }
     
     private func handle(error: Error) -> HTTPRequestError {
@@ -29,7 +27,7 @@ public class HTTPRequestDispatcher {
         return .request(error)
     }
     
-    private func handle<ResponseType: Codable>(type: ResponseType.Type, response: URLResponse?, data: Data?) -> Result<ResponseType, HTTPRequestError> {
+    private func handle(response: URLResponse?, data: Data?) -> Result<Data, HTTPRequestError> {
         guard let httpResponse = response as? HTTPURLResponse else {
             return .failure(.invalidHTTPResponse)
         }
@@ -43,14 +41,7 @@ public class HTTPRequestDispatcher {
         }
         
         if 200...299 ~= httpResponse.statusCode {
-            do {
-                let responseType = try decoder.decode(type.self, from: data)
-                return .success(responseType)
-            } catch let error as DecodingError {
-                return .failure(.responseSerializationFailed(error))
-            } catch {
-                return .failure(.unknown)
-            }
+            return .success(data)
         }
         
         return .failure(.unknown)
@@ -59,7 +50,7 @@ public class HTTPRequestDispatcher {
 
 extension HTTPRequestDispatcher: HTTPRequestDispatcherProtocol {
    
-    public func execute<ResponseType: Codable>(_ request: HTTPRequestProtocol, type: ResponseType.Type, completion: @escaping (Result<ResponseType, HTTPRequestError>) -> Void) {
+    public func perform(_ request: HTTPRequestProtocol, completion: @escaping (Result<Data, HTTPRequestError>) -> Void) {
         do {
             let urlRequest = try builder.build(with: request)
             session.dataTask(with: urlRequest) { [weak self] (data, response, error) in
@@ -68,7 +59,7 @@ extension HTTPRequestDispatcher: HTTPRequestDispatcherProtocol {
                         completion(.failure(self.handle(error: error)))
                         return
                     }
-                    completion(self.handle(type: type, response: response, data: data))
+                    completion(self.handle(response: response, data: data))
                     return
                 }
             }
@@ -78,7 +69,7 @@ extension HTTPRequestDispatcher: HTTPRequestDispatcherProtocol {
         }
     }
     
-    public func execute(_ url: URL, completion: @escaping (Result<Data, HTTPRequestError>) -> Void) {
+    public func perform(_ url: URL, completion: @escaping (Result<Data, HTTPRequestError>) -> Void) {
         session.dataTask(with: url) { data, _, error in
             if let error { completion(.failure(.request(error))) }
             if let data { completion(.success(data)) }

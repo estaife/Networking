@@ -14,7 +14,6 @@ public enum HTTPRequestError: Error {
     case serializedError(data: Data, statusCode: Int)
     case request(Error)
     case parameterEncodingFailed(reason: ParameterEncodingFailure)
-    case responseSerializationFailed(Error)
     
     public enum ParameterEncodingFailure: Error, Equatable {
         case missingURL
@@ -54,8 +53,6 @@ extension HTTPRequestError: Equatable {
             return (lhsError as NSError) == (rhsError as NSError)
         case let (.parameterEncodingFailed(lhsReason), .parameterEncodingFailed(rhsReason)):
             return lhsReason == rhsReason
-        case let (.responseSerializationFailed(lhsError), .responseSerializationFailed(rhsError)):
-            return (lhsError as NSError) == (rhsError as NSError)
         default:
             return false
         }

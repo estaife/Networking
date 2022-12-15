@@ -21,7 +21,7 @@ final class HTTPRequestDispatcherTests: XCTestCase {
 
         let expectation = expectation(description: #function)
         
-        sut.execute(Seeds.url) { result in
+        sut.perform(Seeds.url) { result in
             switch result {
             case .success(let dataReceived):
                 XCTAssertEqual(dataReceived, dataExpected)
@@ -46,7 +46,7 @@ final class HTTPRequestDispatcherTests: XCTestCase {
 
         let expectation = expectation(description: #function)
         
-        sut.execute(Seeds.url) { result in
+        sut.perform(Seeds.url) { result in
             switch result {
             case .failure(let errorReceived):
                 XCTAssertEqual((errorReceived as NSError).code, (errorExpected as NSError).code)
@@ -103,7 +103,6 @@ final class HTTPRequestDispatcherTests: XCTestCase {
     
     func testPOSTMakeRequestToCompleteWithNetworkUnavailableError() throws {
         expectResultWith(
-            type: TestModel.self,
             resultExpected: .failure(.networkUnavailable),
             andWith: (
                 data: nil,
@@ -115,7 +114,6 @@ final class HTTPRequestDispatcherTests: XCTestCase {
     
     func testPOSTMakeRequestToCompleteWithRequestError() throws {
         expectResultWith(
-            type: TestModel.self,
             resultExpected: .failure(.request(Seeds.error)),
             andWith: (
                 data: nil,
@@ -127,10 +125,9 @@ final class HTTPRequestDispatcherTests: XCTestCase {
     
     func testPOSTMakeRequestToCompleteWithDataAndResponse200() {
         expectResultWith(
-            type: TestModel.self,
-            resultExpected: .success(try! Seeds.testModel.convertToData()),
+            resultExpected: .success(Seeds.dataValid),
             andWith: (
-                data: try! Seeds.testModel.convertToData(),
+                data: Seeds.dataValid,
                 response: Seeds.createResponseWith(statusCode: 200),
                 error: nil
             )
@@ -139,18 +136,7 @@ final class HTTPRequestDispatcherTests: XCTestCase {
     
     func testPOSTMakeRequestToCompleteWithDataOptionalAndResponse204() throws {
         expectResultWith(
-            type: TestModel.self,
-            resultExpected: .success(try! Seeds.testModel.convertToData()),
-            andWith: (
-                data: try! Seeds.testModel.convertToData(),
-                response: Seeds.createResponseWith(statusCode: 204),
-                error: nil
-            )
-        )
-        
-        expectResultWith(
-            type: [TestModel].self,
-            resultExpected: .failure(HTTPRequestError.responseSerializationFailed(NSError(domain: "NSCocoaErrorDomain", code: 3840))),
+            resultExpected: .success(Seeds.dataValid),
             andWith: (
                 data: Seeds.dataValid,
                 response: Seeds.createResponseWith(statusCode: 204),
@@ -161,7 +147,6 @@ final class HTTPRequestDispatcherTests: XCTestCase {
     
     func testPOSTMakeRequestToCompleteWithInvalidHTTPResponseError() throws {
         expectResultWith(
-            type: TestModel.self,
             resultExpected: .failure(.invalidHTTPResponse),
             andWith: (
                 data: nil,
@@ -173,7 +158,6 @@ final class HTTPRequestDispatcherTests: XCTestCase {
     
     func testPOSTMakeRequestToCompleteWithUnknownError() throws {
         expectResultWith(
-            type: TestModel.self,
             resultExpected: .failure(.unknown),
             andWith: (
                 data: Seeds.dataEmpty,
@@ -185,7 +169,6 @@ final class HTTPRequestDispatcherTests: XCTestCase {
     
     func testPOSTMakeRequestToCompleteWithSerializedError() throws {
         expectResultWith(
-            type: TestModel.self,
             resultExpected: .failure(.serializedError(data: Seeds.dataValid, statusCode: 404)),
             andWith: (
                 data: Seeds.dataValid,
@@ -193,34 +176,6 @@ final class HTTPRequestDispatcherTests: XCTestCase {
                 error: nil
             )
         )
-    }
-    
-    func testPOSTMakeRequestToCompleteWithUnknownErrorAtDecode() throws {
-        let request = HTTPRequestSpy(url: Seeds.urlString, method: .post)
-        let decoderMock = JSONDecoderMock()
-        decoderMock.errorStub = Seeds.error
-        
-        let sut = createSUT(decoder: decoderMock)
-
-        let expectation = expectation(description: #function)
-        
-        sut.execute(request, type: TestModel.self) { resultReceived in
-            switch resultReceived {
-            case .failure(let errorReceived):
-                XCTAssertEqual(errorReceived as HTTPRequestError, .unknown)
-            default:
-                XCTFail()
-            }
-            expectation.fulfill()
-        }
-        
-        URLProtocolMock.applySimulateWith(
-            data: Seeds.dataValid,
-            response: Seeds.createResponseWith(statusCode: 204),
-            error: nil
-        )
-        
-        wait(for: [expectation], timeout: 1)
     }
     
     func testPOSTMakeRequestToCompleteWithErrorIntoBuildParameters() throws {
@@ -232,7 +187,7 @@ final class HTTPRequestDispatcherTests: XCTestCase {
 
         let expectation = expectation(description: #function)
         
-        sut.execute(request, type: TestModel.self) { resultReceived in
+        sut.perform(request) { resultReceived in
             switch resultReceived {
             case .failure(let errorReceived):
                 XCTAssertEqual(errorReceived as HTTPRequestError, .request(Seeds.error))
@@ -253,12 +208,12 @@ final class HTTPRequestDispatcherTests: XCTestCase {
 }
 
 extension HTTPRequestDispatcherTests {
-    func createSUT(builder: URLRequestBuilderProtocol = URLRequestBuilder(), decoder: JSONDecoder = .init()) -> HTTPRequestDispatcher {
+    func createSUT(builder: URLRequestBuilderProtocol = URLRequestBuilder()) -> HTTPRequestDispatcher {
         let configuration = URLSessionConfiguration.default
         configuration.protocolClasses = [URLProtocolMock.self]
         
         let sessionMock = URLSession(configuration: configuration)
-        let sut = HTTPRequestDispatcher(session: sessionMock, builder: builder, decoder: decoder)
+        let sut = HTTPRequestDispatcher(session: sessionMock, builder: builder)
         
         memoryLeakCheckWith(instance: sut)
         
@@ -271,7 +226,7 @@ extension HTTPRequestDispatcherTests {
         let sut = createSUT()
         
         let expectation = expectation(description: #function)
-        sut.execute(request, type: TestModel.self) { _ in expectation.fulfill() }
+        sut.perform(request) { _ in expectation.fulfill() }
         var request: URLRequest!
         URLProtocolMock.observerRequest { request = $0 }
         wait(for: [expectation], timeout: 1)
@@ -280,9 +235,8 @@ extension HTTPRequestDispatcherTests {
 }
 
 extension HTTPRequestDispatcherTests {
-    func expectResultWith<ResponseType: Codable>(
+    func expectResultWith(
         request: HTTPRequestProtocol = HTTPRequestSpy(url: Seeds.urlString, method: .post),
-        type: ResponseType.Type,
         resultExpected: (Result<Data?, HTTPRequestError>),
         andWith stub: (data: Data?, response: HTTPURLResponse?, error: Error?),
         file: StaticString = #file,
@@ -291,10 +245,10 @@ extension HTTPRequestDispatcherTests {
         let sut = createSUT()
         
         let expectation = expectation(description: #function)
-        sut.execute(request, type: type) { resultReceived in
+        sut.perform(request) { resultReceived in
             switch (resultExpected, resultReceived) {
             case (.success(let dataExpected), .success(let dataReceived)):
-                XCTAssertEqual(dataExpected, try! dataReceived.convertToData(), file: file, line: line)
+                XCTAssertEqual(dataExpected, dataReceived, file: file, line: line)
             case (.failure(let errorExpected), .failure(let errorReceived)):
                 XCTAssertEqual((errorExpected as NSError).code, (errorReceived as NSError).code, file: file, line: line)
                 XCTAssertEqual((errorExpected as NSError).domain, (errorReceived as NSError).domain, file: file, line: line)
