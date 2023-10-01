@@ -158,7 +158,7 @@ final class HTTPRequestDispatcherTests: XCTestCase {
     
     func testPOSTMakeRequestToCompleteWithUnknownError() throws {
         expectResultWith(
-            resultExpected: .failure(.unknown),
+            resultExpected: .failure(.emptyData),
             andWith: (
                 data: Seeds.dataEmpty,
                 response: Seeds.createResponseWith(statusCode: 1),

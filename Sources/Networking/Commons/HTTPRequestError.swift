@@ -9,6 +9,7 @@ import Foundation
 
 public enum HTTPRequestError: Error {
     case unknown
+    case emptyData
     case networkUnavailable
     case invalidHTTPResponse
     case serializedError(data: Data, statusCode: Int)
@@ -41,6 +42,8 @@ public enum HTTPRequestError: Error {
 extension HTTPRequestError: Equatable {
     public static func == (lhs: HTTPRequestError, rhs: HTTPRequestError) -> Bool {
         switch (lhs, rhs) {
+        case (.emptyData, .emptyData):
+            return true
         case (.unknown, .unknown):
             return true
         case (.networkUnavailable, .networkUnavailable):

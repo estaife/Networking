@@ -20,7 +20,7 @@ struct Seeds {
     
     static var urlString: String { "http://url-mock.com" }
     
-    static var invalidURLString: String { #"http://url-mock.com/file\/.html"# }
+    static var invalidURLString: String { "" } 
 
     static var error: Error {  NSError(domain: "Networking.HTTPRequestError", code: 2) }
 

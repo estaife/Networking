@@ -33,7 +33,7 @@ public class HTTPRequestDispatcher {
         }
         
         guard let data, !data.isEmpty else {
-            return .failure(.unknown)
+            return .failure(.emptyData)
         }
         
         if 400...499 ~= httpResponse.statusCode {
